@@ -1,0 +1,32 @@
+tomcat-server-manager (0.1.4~lucid) lucid; urgency=low
+
+  * Added simple man page 
+
+ -- Sebastian Himberger <sebastian@himberger.de>  Sun, 03 Jul 2011 18:59:57 +0200
+
+tomcat-server-manager (0.1.3~lucid) lucid; urgency=low
+
+  * Added automatic port management
+  * Instance creation is now fully automatic
+  * Now using default-jvm symlink
+  * Renamed packaged tomcat to system-default instead of tomcat6
+
+ -- Sebastian Himberger <sebastian@himberger.de>  Sun, 03 Jul 2011 13:25:57 +0200
+
+tomcat-server-manager (0.1.2~lucid) lucid; urgency=low
+
+  * Fixed bug in debian/rules
+
+ -- Sebastian Himberger <sebastian@himberger.de>  Sun, 03 Jul 2011 11:25:57 +0200
+
+tomcat-server-manager (0.1.1~lucid) lucid; urgency=low
+
+  * Fixed architecture of packaging
+
+ -- Sebastian Himberger <sebastian@himberger.de>  Sun, 03 Jul 2011 11:20:57 +0200
+
+tomcat-server-manager (0.1.0~lucid) lucid; urgency=low
+
+  * Initial release
+
+ -- Sebastian Himberger <sebastian@himberger.de>  Sun, 19 Jun 2011 18:20:57 +0200

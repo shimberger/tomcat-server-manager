@@ -1,0 +1,105 @@
+#!/bin/bash
+
+ENV="env -i LANG=en_US.UTF-8 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
+# Script
+# ---------------------------------------------------------------
+
+COMMAND=$1
+INSTANCE=""
+MANAGER_COMMAND="/usr/sbin/tomcat-server-manager"
+
+if [ -n "$2" ];
+  then
+    COMMAND=$1
+    INSTANCE=$2
+fi
+
+console() {
+  #$1 = instance
+  $MANAGER_COMMAND start-console --instance-name=$1
+}
+
+start() {
+  #$1 = instance
+  logger -p syslog.info "Starting Tomcat instance $1"
+  $MANAGER_COMMAND start-instance --instance-name=$1
+}
+
+restart() {
+  #$1 = instance
+  logger -p syslog.info "Restarting Tomcat instance $1"
+  $MANAGER_COMMAND restart-instance --instance-name=$1
+}
+
+condrestart() {
+  #$1 = instance
+  $MANAGER_COMMAND condrestart-instance --instance-name=$1
+}
+
+dump() {
+  #$1 = instance
+  $MANAGER_COMMAND dump-instance --instance-name=$1
+}
+
+
+status() {
+  #$1 = instance
+  $MANAGER_COMMAND start-console --instance-name=$1
+}
+
+stop() {
+  #$1 = instance
+  logger -p syslog.info "Stopping Tomcat instance $1"
+  $MANAGER_COMMAND stop-instance --instance-name=$1
+}
+
+# Main switch for init.d commands
+INSTANCES=`/usr/sbin/tomcat-server-manager list-instances`
+case "$COMMAND" in
+
+    'console')
+        if [ -z "$INSTANCE" ];  
+          then
+            echo "Error: The console command can only be used with an instance name"
+            exit 1
+        fi
+        console $INSTANCE
+        ;;
+
+    'start')
+        for instance in $INSTANCES; do start $instance; done;  
+        ;;
+
+    'stop')
+        for instance in $INSTANCES; do stop $instance; done;
+        ;;
+
+    'restart')
+        for instance in $INSTANCES; do restart $instance; done;
+        ;;
+
+    'condrestart')
+        for instance in $INSTANCES; do condrestart $instance; done;
+        ;;
+
+    'status')
+        for instance in $INSTANCES; do status $instance; done;
+        ;;
+
+    'force-reload')
+        for instance in $INSTANCES; do restart $instance; done;
+        ;;
+
+    'dump')
+        for instance in $INSTANCES; do dump $instance; done;
+        ;;
+    *)
+        echo "Usage: $0 [instance] { console | start | stop | restart | condrestart | force-reload | status | dump }"
+        exit 1
+        ;;
+
+esac
+
+exit 0
+

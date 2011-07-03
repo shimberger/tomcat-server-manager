@@ -1,0 +1,29 @@
+<Server port="${port.shutdown}" shutdown="${tomcat.password}">
+
+  <GlobalNamingResources>
+    <!-- Used by Manager webapp -->
+    <Resource name="UserDatabase" auth="Container"
+              type="org.apache.catalina.UserDatabase"
+       description="User database that can be updated and saved"
+           factory="org.apache.catalina.users.MemoryUserDatabaseFactory"
+          pathname="conf/tomcat-users.xml" />
+  </GlobalNamingResources>
+
+  <Service name="Catalina">
+    <Executor name="thread-pool" namePrefix="catalina-exec-"
+        maxThreads="150" minSpareThreads="10"/>
+
+    <Connector URIEncoding="UTF-8" executor="thread-pool" emptySessionPath="true" port="${port.http}" />
+
+    <!-- This is here for compatibility only, not required -->
+    <Connector URIEncoding="UTF-8" executor="thread-pool" emptySessionPath="true" port="${port.https}" protocol="AJP/1.3" />
+
+    <Engine name="Catalina" defaultHost="localhost">
+      <Realm className="org.apache.catalina.realm.UserDatabaseRealm"
+             resourceName="UserDatabase" />
+      <Host name="localhost" appBase="webapps" />
+    </Engine>
+
+  </Service>
+</Server>
+

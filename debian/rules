@@ -1,0 +1,26 @@
+#!/usr/bin/make -f
+
+# Thanks to: http://stackoverflow.com/questions/804948/variables-in-debian-rules-makefile
+DISTRIB := $(shell dpkg-parsechangelog | sed -n -e 's/^Distribution: //p')
+DEBVERS := $(shell dpkg-parsechangelog | sed -n -e 's/^Version: //p')
+DEBARCH := 'all'
+VERSION := $(shell echo '$(DEBVERS)' | sed -e 's/^[[:digit:]]*://' -e 's/[~-].*//')
+
+PKGNAME := 'tomcat-server-manager'
+
+build:
+
+clean:
+	rm -rf debian/$(PKGNAME)
+	rm -f debian/files
+
+binary-indep: build
+	mkdir -p debian/$(PKGNAME)/DEBIAN
+	make prefix=debian/$(PKGNAME) install
+	cd debian/$(PKGNAME) && find * -path DEBIAN -prune -o -type f -print | xargs md5sum > DEBIAN/md5sums && cd ../../
+	dpkg-gencontrol -isp -Pdebian/$(PKGNAME)
+	dpkg-deb --build debian/$(PKGNAME) ../$(PKGNAME)_$(DEBVERS)_$(DEBARCH).deb
+
+binary-arch: build
+
+binary: binary-indep

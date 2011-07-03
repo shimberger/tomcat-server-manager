@@ -1,0 +1,469 @@
+#!/usr/bin/python
+
+# Dependencies
+
+import sys
+import os
+import re
+import distutils.dir_util
+import fileinput
+import random
+import string
+
+# Functions & Classes
+
+def add_key_to_list(key,thedict,thelist):
+    if key in thedict:
+        thelist += thedict[key]
+
+def args_as_dict(args):
+    args_dict = {}
+    for arg in args:
+        m = re.search("^--(.*)=(.*)$",arg)
+        if m != None:
+            args_dict[m.group(1)] = m.group(2)
+    return args_dict
+
+def banner():        
+    print "For details regarding a specific command use \"tomcat-server-manager help --command=<<command-name>>\""
+
+def commands_help(command_groups):
+    for grp in command_groups: 
+        print "  " + grp.name()
+        for cmd in grp.commands():
+            print "    " + cmd.name() + ": " + cmd.help()
+        print ""
+
+class InstanceManager:
+
+    config_path = "/etc/tomcat-servers"
+    instances_path = config_path + "/instances"
+    versions_path = config_path + "/tomcat-version-configs"
+    var_root = "/var/lib/tomcat-servers/"
+
+    def available_versions(self):
+         return [name for name in os.listdir(self.versions_path)
+            if os.path.isdir(os.path.join(self.versions_path, name))]
+
+    def available_instances(self):
+         return [name for name in os.listdir(self.instances_path)
+            if os.path.isdir(os.path.join(self.instances_path, name))]  
+
+    def read_instance_properties(self,instance):
+	    return self.read_properties(os.path.join(self.instances_path,instance,"conf/catalina.properties"))
+
+    def read_manager_properties(self):
+         return self.read_properties(os.path.join(self.config_path,"manager.properties"))
+
+    def read_properties(self,path):
+         properties = {}
+         for line in fileinput.input(path):
+              if line.strip() != "" and not line.startswith("#"):
+                  fields = line.split("=")
+                  properties[fields[0].strip()] = fields[1].strip()
+         return properties
+
+
+    def get_instance_ports(self,instance):
+        ports = []
+	properties = self.read_instance_properties(instance)
+        add_key_to_list("port.jmx",properties,ports)
+        add_key_to_list("port.ajp",properties,ports)	     
+        add_key_to_list("port.http",properties,ports)
+        add_key_to_list("port.https",properties,ports)
+        add_key_to_list("port.shutdown",properties,ports)
+        return ports
+
+
+    def get_free_ports(self,num):
+        properties = self.read_manager_properties()
+        port_range = properties["port-range"].split("-")
+        all_ports = range(int(port_range[0]),int(port_range[1]))
+        used_ports = []
+        for instance in self.available_instances():
+            used_ports += self.get_instance_ports(instance)	
+        avail_ports = [p for p in all_ports if p not in used_ports] 
+        if len(avail_ports) < num:
+            raise Exception("Not enough free ports available")
+        assigned_ports = []
+        for port in avail_ports:
+            assigned_ports.append(port)
+        return assigned_ports
+
+
+    def instance_environment(self,instance):
+         properties = self.read_instance_properties(instance)
+         return {
+           "CATALINA_BASE": os.path.join(self.var_root,instance),
+           "CATALINA_HOME": os.path.join(self.config_path,"tomcat-versions",properties["tomcat.version"],"catalina-home"),
+           "APP_NAME": "tomcat-"+instance,
+           "APP_LONG_NAME": "Tomcat instance " + instance,
+           "WRAPPER_CONF": os.path.join(self.instances_path,instance,"conf","wrapper.conf"),
+           "PIDDIR": os.path.join(self.var_root,instance,"run"),
+           "RUN_AS_USER": properties["instance.user"],
+           "CATALINA_DEBUG": properties["tomcat.debug"],
+           "PRIORITY": "",
+           "JAVA_HOME": properties["java.home"],
+           "JAVA_JMXPORT": properties["port.jmx"],
+           "JAVA_MAXMEMORY": properties["java.memory.max"],
+           "JAVA_INITMEMORY": properties["java.memory.init"],
+           "JAVA_MAXPERMSIZE": properties["java.memory.maxPermSize"],
+         }
+
+    def available_version_configs(self,version,config = None):
+        configs = []
+        version_path = self.versions_path + "/" + version + "/conf"
+        if config == None:
+            return [name for name in os.listdir(version_path)
+                if os.path.isdir(os.path.join(version_path, name))]  
+        else: 
+            version_path = self.versions_path + "/" + version + "/conf/" + config 
+            return [name for name in os.listdir(version_path)
+                if not os.path.isdir(os.path.join(version_path, name))]  
+
+class CommandManager:
+
+    known_commands = []
+    known_commands_by_name = {}
+    instance_manager = InstanceManager()
+    _command_groups = []
+
+    def __init__(self,groups):
+        for group in groups:
+            for cmd in group.commands():
+                self.known_commands.append(cmd)
+        self.known_commands_by_name = dict((c.name(),c) for c in self.known_commands)
+        self._command_groups = groups
+
+    def is_available_command(self,name):
+        return name in self.known_commands_by_name
+
+    def command(self,name):
+        if self.is_available_command(name):
+            return self.known_commands_by_name[name]
+        return None
+
+    def commands(self):
+        return self.known_commands
+
+    def command_groups(self):
+        return self._command_groups
+
+    def execute(self,command,args):
+        if self.is_available_command(command):
+            cmd = self.known_commands_by_name[command]
+            cmd.instance_manager = self.instance_manager
+            cmd.command_manager = self
+            args = dict([(n,None) for n in cmd.optional_args()] + cmd.default_args().items() + args.items())
+            for required_arg in cmd.required_args():
+                if required_arg not in args or args[required_arg] == None:
+                    self.fail("Required parameter --" + required_arg + "=<<value>> not set")
+            cmd.execute(args)
+
+    def fail(self,reason):
+        print "Execution failed: " + reason
+        exit(1)
+
+class CommandGroup:
+
+    _name = "unknown"
+    _help = ""
+    _commands = []
+
+    def __init__(self,name,help,commands):
+        self._commands = commands
+        self._name = name
+        self._help = help
+
+    def commands(self):
+        return self._commands
+
+    def name(self):
+        return self._name
+
+    def help(self):
+        return self._help
+
+class Command:
+
+    _name = "unknown"
+    _help = "No help available"
+
+    _required_args = []
+    _required_args_help = []
+
+    _optional_args = []
+    _optional_args_help = []
+
+    instance_manager = None
+    command_manager = None
+
+    def default_args(self):
+        return {}
+
+    def required_args(self):
+        return self._required_args
+
+    def required_args_help(self):
+        return self._required_args_help
+
+    def optional_args(self):
+        return self._optional_args
+
+    def optional_args_help(self):
+        return self._optional_args_help
+
+    def help(self):
+        return self._help
+
+    def name(self):
+        return self._name
+
+    def execute(self,args):
+        print "Executing " + self.name()
+
+    def fail(self,reason):
+        print "Command failed: " + reason
+        exit(1)
+
+    def ensure_lock(self):
+        pass
+
+class ListCommand(Command):
+
+    _name = "list-instances"
+    _help = "Lists all Tomcat instances"
+
+    def execute(self,args):
+        for i in self.instance_manager.available_instances():
+            print i
+
+class CreateInstanceCommand(Command):
+
+    _name = "create-instance"
+    _help = "Creates a new Tomcat instance"
+    _required_args = ["instance-user","instance-name"]
+    _optional_args = ["java-home","java-memory-max-perm-size","java-memory-max-size","java-memory-init-size","tomcat-version","tomcat-debug"]
+
+    def ensure_instance_does_not_exist(self,instance_name):
+        if instance_name in self.instance_manager.available_instances():
+            self.fail("An instance with the name " + instance_name + " already exists")    
+
+    def default_args(self):
+        args = {}
+        ports = self.instance_manager.get_free_ports(5)
+        args["jmx-port"] = str(ports[0])
+        args["ajp-port"] = str(ports[1])
+        args["http-port"] = str(ports[2])
+        args["https-port"] = str(ports[3])
+        args["shutdown-port"] = str(ports[4])
+        args["java-home"] = "/usr/lib/jvm/default-java"
+        args["java-memory-max-perm-size"] = "128m"
+        args["java-memory-init-size"] = "32m"
+        args["java-memory-max-size"] = "256m"
+        args["tomcat-version"] = "system-default"
+        args["tomcat-debug"] = "false"
+        args["shutdown-password"] = ''.join(random.choice(string.ascii_lowercase + string.ascii_uppercase + string.digits) for x in range(20))
+        return args 
+
+    def generate_config(self,args):
+        config =  "# Network configuration:" + "\n" 
+        config += "port.jmx=" + args["jmx-port"] + "\n"
+        config += "port.ajp=" + args["ajp-port"] + "\n"
+        config += "port.http=" + args["http-port"] +  "\n"
+        config += "port.https=" + args["https-port"] + "\n"
+        config += "port.shutdown=" + args["shutdown-port"] + "\n"
+        config += "# Tomcat configuration: \n" 
+        config += "tomcat.version=" + args["tomcat-version"] + "\n"
+        config += "tomcat.debug=" + args["tomcat-debug"] + "\n" + "\n" 
+        config += "tomcat.password=" + args["shutdown-password"] + "\n" + "\n"
+        config += "# Java configuration: \n"
+        config += "java.home=" + args["java-home"] +  "\n"
+        config += "java.memory.maxPermSize=" + args["java-memory-max-perm-size"] + "\n"
+        config += "java.memory.max=" + args["java-memory-max-size"] + "\n"
+        config += "java.memory.init=" + args["java-memory-init-size"] + "\n"
+        config += "# Instance configuration: " + "\n" 
+        config += "instance.user=" + args["instance-user"] + "\n"
+        config += "instance.enabled=true" + "\n" + "\n"
+        config += "# Internal (do not remove) :\n"
+        config += "package.access=sun.,org.apache.catalina.,org.apache.coyote.,org.apache.tomcat.,org.apache.jasper.,sun.beans.package.definition=sun.,java.,org.apache.catalina.,org.apache.coyote.,org.apache.tomcat.,org.apache.jasper." + "\n"
+        config += "common.loader=${catalina.home}/lib,${catalina.home}/lib/*.jar" + "\n"
+        config += "tomcat.util.buf.StringCache.byte.enabled=true" + "\n"
+        config += "# This file was automatically generated, but is safe to modify"
+        return config
+
+    def execute(self,args):
+        self.ensure_instance_does_not_exist(args["instance-name"])
+        config_root = os.path.join(self.instance_manager.instances_path,args["instance-name"])
+        var_root = os.path.join(self.instance_manager.var_root,args["instance-name"])
+        os.mkdir(config_root)
+        os.mkdir(os.path.join(config_root,"conf"))
+        cf = open(os.path.join(config_root,"conf","catalina.properties"), 'w')
+        cf.write(self.generate_config(args))
+        cf.close()
+        os.mkdir(os.path.join(config_root,"conf","Catalina"))
+        os.mkdir(os.path.join(config_root,"contexts-available"))
+        os.mkdir(os.path.join(config_root,"contexts-enabled"))
+        os.symlink(os.path.join(config_root,"contexts-enabled"),os.path.join(config_root,"conf","Catalina","localhost"))
+        distutils.dir_util.copy_tree(
+            os.path.join(self.instance_manager.config_path,"tomcat-versions/" + args["tomcat-version"] + "/conf/skeleton"),
+            os.path.join(config_root,"conf"))
+        options_path = os.path.join(self.instance_manager.config_path,"tomcat-versions/" + args["tomcat-version"] + "/conf/options")
+        for n in [name for name in os.listdir(options_path)
+                    if os.path.isdir(os.path.join(options_path, name))]:
+            os.symlink(os.path.join(options_path,n,"default"),os.path.join(config_root,"conf",n))
+        os.mkdir(var_root)
+        os.mkdir(os.path.join(var_root,"webapps"))
+        os.mkdir(os.path.join(var_root,"work"))
+        os.mkdir(os.path.join(var_root,"temp"))
+        os.mkdir(os.path.join(var_root,"run"))
+        os.mkdir(os.path.join(var_root,"logs"))
+	os.system("chown "+args["instance-user"]+":root "+var_root+"/*")
+        os.symlink(os.path.join(config_root,"conf"),os.path.join(var_root,"conf"))
+        print "Instance created"
+
+class DeleteInstanceCommand(Command):
+
+    _name = "delete-instance"
+    _help = "Deletes a Tomcat instance"
+    _required_args = ["instance-name"]
+
+    def ensure_instance_does_exist(self,instance_name):
+        if not args["instance-name"] in self.instance_manager.available_instances():
+            self.fail("An instance with the name " + args["instance-name"] + " does not exist")
+
+    def execute(self,args):
+        self.ensure_instance_does_exist(args["instance-name"])
+        instance_path = self.instance_manager.instances_path + "/" + args["instance-name"]
+        var_root = os.path.join(self.instance_manager.var_root,args["instance-name"])
+        if os.path.isdir(var_root):
+            distutils.dir_util.remove_tree(var_root)
+        distutils.dir_util.remove_tree(instance_path)
+        print "Instance deleted"
+
+class ListVersionsCommand(Command):
+
+    _name = "list-versions"
+    _help = "Lists all available Tomcat versions"
+
+    def execute(self,args):
+        for v in self.instance_manager.available_versions():
+            print v
+
+class ListVersionConfigsCommand(Command):
+
+    _name = "list-versions-configs"
+    _help = "Lists all available configuration options or all available option values"
+    _required_args = ["version"]
+    _optional_args = ["config"]
+
+    def execute(self,args):
+        if not args["version"] in commander.instance_manager.available_versions():
+            self.fail("An version " + args["version"] + " does not exist")
+        for v in self.instance_manager.available_version_configs(args["version"],args["config"]):
+            print v
+
+class StartConsoleCommand(Command):
+
+    _name = "start-console"
+    _help = "Starts the instance in console mode"
+    _required_args = ["instance-name"]
+
+    def execute(self,args):
+        os.environ.update(self.instance_manager.instance_environment(args["instance-name"]))
+        os.system("/usr/bin/java-service-wrapper-init-script console")
+
+class StartInstanceCommand(Command):
+
+    _name = "start-instance"
+    _help = "Starts the instance"
+    _required_args = ["instance-name"]
+
+    def execute(self,args):
+        os.environ.update(self.instance_manager.instance_environment(args["instance-name"]))
+        os.system("/usr/bin/java-service-wrapper-init-script start")
+
+class StopInstanceCommand(Command):
+
+    _name = "stop-instance"
+    _help = "Stops the instance"
+    _required_args = ["instance-name"]
+
+    def execute(self,args):
+        os.environ.update(self.instance_manager.instance_environment(args["instance-name"]))
+        os.system("/usr/bin/java-service-wrapper-init-script stop")
+
+class RestartInstanceCommand(Command):
+
+    _name = "restart-instance"
+    _help = "Restarts the instance"
+    _required_args = ["instance-name"]
+
+    def execute(self,args):
+        os.environ.update(self.instance_manager.instance_environment(args["instance-name"]))
+        os.system("/usr/bin/java-service-wrapper-init-script restart")
+
+class CondrestartInstanceCommand(Command):
+
+    _name = "condrestart-instance"
+    _help = "Condretarts the instance"
+    _required_args = ["instance-name"]
+
+    def execute(self,args):
+        os.environ.update(self.instance_manager.instance_environment(args["instance-name"]))
+        os.system("/usr/bin/java-service-wrapper-init-script condrestart")
+
+class DisplayHelpCommand(Command):
+
+    _name = "help"
+    _help = "Shows help to a specific command"
+    _required_args = ["command"]
+
+
+    def execute(self,args):
+        cmd = self.command_manager.command(args["command"])
+        if cmd == None:
+            self.fail("Command " + args["command"] + " is unknown")
+        print "Help for \"" + cmd.name() + "\""
+        print "\n" + cmd.help()
+        print "\n  Required Arguments:"
+        for arg in cmd.required_args():
+            print "    --" + arg + "=<<value>>\t\t\t"
+        print "\n  Optional Arguments:"
+        for arg in cmd.optional_args():
+            print "    --" + arg + "=<<value>>\t\t\t"
+        print "\n"
+
+        
+
+instance_manager = InstanceManager()
+command_manager  = CommandManager([
+    CommandGroup("Instance control","",[StartConsoleCommand(),StartInstanceCommand(),StopInstanceCommand(),RestartInstanceCommand(),CondrestartInstanceCommand()]),
+    CommandGroup("Instance management","",[ListCommand(),CreateInstanceCommand(),DeleteInstanceCommand()]),
+    CommandGroup("Tomcat information","",[ListVersionsCommand(),ListVersionConfigsCommand()]),
+    CommandGroup("General commands","",[DisplayHelpCommand()]),
+])
+
+command_manager.instance_manager = instance_manager
+
+# Main program
+
+if len(sys.argv) < 2:
+    print "Please specify one of the following commands:\n"
+    commands_help(command_manager.command_groups())
+    banner()
+    exit(1)
+
+user_command = sys.argv[1]
+
+if not command_manager.is_available_command(user_command):
+    print "Unknown command: " + user_command + ". Please specify one of the following:\n"
+    commands_help(command_manager.command_groups())
+    banner()
+    exit(1)
+
+args = args_as_dict(sys.argv[2:])
+
+command_manager.execute(user_command,args)
+
+

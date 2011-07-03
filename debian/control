@@ -1,0 +1,15 @@
+Source: tomcat-server-manager
+Section: java
+Priority: extra
+Maintainer: Sebastian Himberger <sebastian@himberger.de>
+Build-Depends: debhelper (>= 7) pandoc 
+Standards-Version: 3.8.3
+Homepage: https://github.com/shimberger/tomcat-server-manager
+
+Package: tomcat-server-manager
+Architecture: all 
+Depends: ${shlibs:Depends}, ${misc:Depends}, tomcat6-common, java-service-wrapper, default-jre, python
+Description: Manages and configures multiple Tomcat instances
+ This package allows the creation of multiple Tomcat instances on one machine.
+ It uses the Java Service Wrapper to control all the instances.
+ Instances can run under their own user to provide better security.
