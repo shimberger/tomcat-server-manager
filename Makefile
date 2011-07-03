@@ -9,4 +9,5 @@ install:
 	cp -r etc/* $(prefix)/etc/
 	cp -r var/* $(prefix)/var/
 	cp -r usr/* $(prefix)/usr/
-	pandoc -s -w man README | gzip > $(prefix)/usr/share/man/man8/tomcat-server-manager.8.gz
+	mkdir -p $(prefix)/usr/share/man/man8/
+	pandoc -s -w man README.md | gzip > $(prefix)/usr/share/man/man8/tomcat-server-manager.8.gz

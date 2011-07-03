@@ -2,7 +2,7 @@ Source: tomcat-server-manager
 Section: java
 Priority: extra
 Maintainer: Sebastian Himberger <sebastian@himberger.de>
-Build-Depends: debhelper (>= 7) pandoc 
+Build-Depends: debhelper (>= 7), pandoc 
 Standards-Version: 3.8.3
 Homepage: https://github.com/shimberger/tomcat-server-manager
 
