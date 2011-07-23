@@ -1,4 +1,17 @@
-#!/bin/bash
+#!/bin/sh
+
+### BEGIN INIT INFO
+# Provides:          tomcat-servers
+# Required-Start:    $local_fs $remote_fs $network
+# Required-Stop:     $local_fs $remote_fs $network
+# Should-Start:      $named
+# Should-Stop:       $named
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Start Tomcat servers.
+# Description:       Start managed Tomcat servers.
+### END INIT INFO
+
 
 ENV="env -i LANG=en_US.UTF-8 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
