@@ -108,6 +108,7 @@ class InstanceManager:
            "JAVA_MAXMEMORY": properties["java.memory.max"],
            "JAVA_INITMEMORY": properties["java.memory.init"],
            "JAVA_MAXPERMSIZE": properties["java.memory.maxPermSize"],
+           "WAIT_AFTER_STARTUP": '0',
          }
 
     def available_version_configs(self,version,config = None):
