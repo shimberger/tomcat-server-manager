@@ -157,7 +157,7 @@ class CommandManager:
             cmd.command_manager = self
             args = dict([(n,None) for n in cmd.optional_args()] + cmd.default_args().items() + args.items())
             for required_arg in cmd.required_args():
-                if required_arg not in args or args[required_arg] == None:
+                if required_arg not in args or args[required_arg] == None or args[required_arg].strip() == "":
                     self.fail("Required parameter --" + required_arg + "=<<value>> not set")
             cmd.execute(args)
 
