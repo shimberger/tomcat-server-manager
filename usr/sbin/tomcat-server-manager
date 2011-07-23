@@ -9,6 +9,7 @@ import distutils.dir_util
 import fileinput
 import random
 import string
+import subprocess
 
 # Functions & Classes
 
@@ -250,6 +251,11 @@ class CreateInstanceCommand(Command):
         if instance_name in self.instance_manager.available_instances():
             self.fail("An instance with the name " + instance_name + " already exists")    
 
+    def ensure_user_exists(self,user_name):
+        FNULL = open('/dev/null', 'w')
+        if subprocess.call(["id", user_name],stdout=FNULL,stderr=FNULL) != 0:
+            self.fail("No user with the name " + user_name + " could be found using the 'id' command")
+
     def default_args(self):
         args = {}
         ports = self.instance_manager.get_free_ports(5)
@@ -294,6 +300,7 @@ class CreateInstanceCommand(Command):
         return config
 
     def execute(self,args):
+        self.ensure_user_exists(args["instance-user"])
         self.ensure_instance_does_not_exist(args["instance-name"])
         config_root = os.path.join(self.instance_manager.instances_path,args["instance-name"])
         var_root = os.path.join(self.instance_manager.var_root,args["instance-name"])
@@ -464,6 +471,9 @@ if not command_manager.is_available_command(user_command):
     exit(1)
 
 args = args_as_dict(sys.argv[2:])
+
+if not os.geteuid()==0:
+    sys.exit("You have to be root to run this script")
 
 command_manager.execute(user_command,args)
 
