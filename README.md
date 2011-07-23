@@ -76,6 +76,31 @@ can be useful for debugging purposes. Example:
 This will start the instance "myinstance" and attach your current session to
 the console.
 
+Adding a web app to an instance
+-------------------------------
+
+The usual tomcat way is to put your applications inside the "webapps" directory
+of CATALINA_HOME. The way suggested by this application is to store your applications
+outside the CATALINA_HOME for example under "/srv/webapps" and add your webapps using
+a context XML file. To do so create a file like the following under 
+"/etc/tomcat-servers/instances/$YOURINSTANCE/contexts-available/mywebapp.xml". 
+The file should have the following content:
+
+	<Context path="/mywebapp" docBase="/srv/webapps/mywebapp" >
+	</Context>
+
+This way you can add additional configuration parameters to the webapp. After creating
+the XML file create a symlink pointing to it in 
+"/etc/tomcat-servers/instances/$YOURINSTANCE/contexts-enabled".
+
+Directory Structure
+===================
+
+The relevant directories for this application are:
+
+* /var/lib/tomcat-servers: This is where the runtime instance information (temp files, logs, ...) is stored
+* /etc/tomcat-servers/: This is where the application and instance configuration is stored
+
 Options
 =======
 
