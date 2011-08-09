@@ -1,3 +1,17 @@
+tomcat-server-manager (0.1.7~lucid) lucid; urgency=low
+
+  * Fixed bug #12: Sudo Authentication failure
+  * Fixed bug #11: Check if instance-user exists
+  * Fixed bug #10: Command list-versions fails
+  * Fixed bug #9: Instance directory layout is now explained in man page
+  * Fixed bug #7: Starting instance gives shell warning
+  * Fixed bug #5: start instance with empty parameter fails
+  * Fixed bug #13: Services are not started at boot time
+  * Feature: Ports are now allocated automatically
+  * All the init.d commands are now working correctly
+
+ -- Sebastian Himberger <sebastian@himberger.de>  Sun, 03 Jul 2011 19:25:57 +0200
+
 tomcat-server-manager (0.1.6~lucid) lucid; urgency=low
 
   * Bug in Makefile
