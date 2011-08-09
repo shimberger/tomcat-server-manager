@@ -58,13 +58,24 @@ dump() {
 
 status() {
   #$1 = instance
-  $MANAGER_COMMAND start-console --instance-name=$1
+  $MANAGER_COMMAND status-instance --instance-name=$1
 }
 
 stop() {
   #$1 = instance
   logger -p syslog.info "Stopping Tomcat instance $1"
   $MANAGER_COMMAND stop-instance --instance-name=$1
+}
+
+execCommand() {
+  #$1 = command
+  if [ -z "$INSTANCE" ]; then
+    # If no instance is specified, apply to all instances
+    for instance in $INSTANCES; do $1 $instance; done;
+  else
+    # If instance is specified, only apply to the instance
+    $1 $INSTANCE
+  fi
 }
 
 # Main switch for init.d commands
@@ -81,31 +92,31 @@ case "$COMMAND" in
         ;;
 
     'start')
-        for instance in $INSTANCES; do start $instance; done;  
+        execCommand start
         ;;
 
     'stop')
-        for instance in $INSTANCES; do stop $instance; done;
+        execCommand stop
         ;;
 
     'restart')
-        for instance in $INSTANCES; do restart $instance; done;
+        execCommand restart
         ;;
 
     'condrestart')
-        for instance in $INSTANCES; do condrestart $instance; done;
+        execCommand condrestart
         ;;
 
     'status')
-        for instance in $INSTANCES; do status $instance; done;
+        execCommand status
         ;;
 
     'force-reload')
-        for instance in $INSTANCES; do restart $instance; done;
+        execCommand restart
         ;;
 
     'dump')
-        for instance in $INSTANCES; do dump $instance; done;
+        execCommand dump
         ;;
     *)
         echo "Usage: $0 [instance] { console | start | stop | restart | condrestart | force-reload | status | dump }"

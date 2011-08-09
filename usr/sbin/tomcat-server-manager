@@ -422,6 +422,27 @@ class CondrestartInstanceCommand(Command):
         os.environ.update(self.instance_manager.instance_environment(args["instance-name"]))
         os.system("/usr/bin/java-service-wrapper-init-script condrestart")
 
+class StatusInstanceCommand(Command):
+
+    _name = "status-instance"
+    _help = "Retrieves the status of the instance"
+    _required_args = ["instance-name"]
+
+    def execute(self,args):
+        os.environ.update(self.instance_manager.instance_environment(args["instance-name"]))
+        os.system("/usr/bin/java-service-wrapper-init-script status")
+
+class DumpInstanceCommand(Command):
+
+    _name = "dump-instance"
+    _help = "Dumps the status of the instance"
+    _required_args = ["instance-name"]
+
+    def execute(self,args):
+        os.environ.update(self.instance_manager.instance_environment(args["instance-name"]))
+        os.system("/usr/bin/java-service-wrapper-init-script dump")
+
+
 class DisplayHelpCommand(Command):
 
     _name = "help"
@@ -447,7 +468,7 @@ class DisplayHelpCommand(Command):
 
 instance_manager = InstanceManager()
 command_manager  = CommandManager([
-    CommandGroup("Instance control","",[StartConsoleCommand(),StartInstanceCommand(),StopInstanceCommand(),RestartInstanceCommand(),CondrestartInstanceCommand()]),
+    CommandGroup("Instance control","",[StartConsoleCommand(),StartInstanceCommand(),StopInstanceCommand(),RestartInstanceCommand(),CondrestartInstanceCommand(),StatusInstanceCommand(),DumpInstanceCommand()]),
     CommandGroup("Instance management","",[ListCommand(),CreateInstanceCommand(),DeleteInstanceCommand()]),
     CommandGroup("Tomcat information","",[ListVersionsCommand()]),
     CommandGroup("General commands","",[DisplayHelpCommand()]),
