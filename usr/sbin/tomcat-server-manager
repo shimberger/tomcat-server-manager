@@ -385,7 +385,7 @@ class StartConsoleCommand(InstanceCommand):
     _required_args = ["instance-name"]
 
     def execute(self,args):
-        self.ensure_instance_does_exists(args["instance-name"])
+        self.ensure_instance_does_exist(args["instance-name"])
         os.environ.update(self.instance_manager.instance_environment(args["instance-name"]))
         os.system("/usr/bin/java-service-wrapper-init-script console")
 
