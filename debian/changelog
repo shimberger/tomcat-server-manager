@@ -1,3 +1,12 @@
+tomcat-server-manager (0.1.8~lucid) lucid; urgency=low
+
+  * Fixed bug #18: catalina.properties causing conflicts with AWT
+  * Fixed bug #16: Calling init script with wrong instance name => stacktrace
+  * Fixed bug #17: Added awt headless to parameters 
+  * Fixed bug #15: Automatic port management does not work
+
+ -- Sebastian Himberger <sebastian@himberger.de>  Aug, 12 Jul 2011 12:25:57 +0200
+
 tomcat-server-manager (0.1.7~lucid) lucid; urgency=low
 
   * Fixed bug #12: Sudo Authentication failure

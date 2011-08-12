@@ -1,4 +1,4 @@
-<Server port="${port.shutdown}" shutdown="${tomcat.password}">
+<Server port="${tsm.port.shutdown}" shutdown="${tsm.tomcat.password}">
 
   <GlobalNamingResources>
     <!-- Used by Manager webapp -->
@@ -13,10 +13,10 @@
     <Executor name="thread-pool" namePrefix="catalina-exec-"
         maxThreads="150" minSpareThreads="10"/>
 
-    <Connector URIEncoding="UTF-8" executor="thread-pool" emptySessionPath="true" port="${port.http}" />
+    <Connector URIEncoding="UTF-8" executor="thread-pool" emptySessionPath="true" port="${tsm.port.http}" />
 
     <!-- This is here for compatibility only, not required -->
-    <Connector URIEncoding="UTF-8" executor="thread-pool" emptySessionPath="true" port="${port.https}" protocol="AJP/1.3" />
+    <Connector URIEncoding="UTF-8" executor="thread-pool" emptySessionPath="true" port="${tsm.port.ajp}" protocol="AJP/1.3" />
 
     <Engine name="Catalina" defaultHost="localhost">
       <Realm className="org.apache.catalina.realm.UserDatabaseRealm"

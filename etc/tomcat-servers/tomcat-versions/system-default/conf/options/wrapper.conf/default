@@ -34,6 +34,7 @@ wrapper.java.additional.9=-Dcom.sun.management.jmxremote.authenticate="false"
 wrapper.java.additional.10=-Dcom.sun.management.jmxremote.ssl="false"
 wrapper.java.additional.11=-Dorg.tanukisoftware.wrapper.WrapperManager.mbean=true
 wrapper.java.additional.12=-Dorg.tanukisoftware.wrapper.WrapperManager.mbean.testing=false
+wrapper.java.additional.13=-Djava.awt.headless=true
 wrapper.java.additional.14=-XX:MaxPermSize=%JAVA_MAXPERMSIZE%
 
 # Initial Java Heap Size (in MB)

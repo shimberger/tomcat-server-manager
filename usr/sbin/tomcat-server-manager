@@ -15,7 +15,7 @@ import subprocess
 
 def add_key_to_list(key,thedict,thelist):
     if key in thedict:
-        thelist += thedict[key]
+        thelist.append(str(thedict[key]))
 
 def args_as_dict(args):
     args_dict = {}
@@ -68,11 +68,11 @@ class InstanceManager:
     def get_instance_ports(self,instance):
         ports = []
 	properties = self.read_instance_properties(instance)
-        add_key_to_list("port.jmx",properties,ports)
-        add_key_to_list("port.ajp",properties,ports)	     
-        add_key_to_list("port.http",properties,ports)
-        add_key_to_list("port.https",properties,ports)
-        add_key_to_list("port.shutdown",properties,ports)
+        add_key_to_list("tsm.port.jmx",properties,ports)
+        add_key_to_list("tsm.port.ajp",properties,ports)	     
+        add_key_to_list("tsm.port.http",properties,ports)
+        add_key_to_list("tsm.port.https",properties,ports)
+        add_key_to_list("tsm.port.shutdown",properties,ports)
         return ports
 
 
@@ -83,32 +83,30 @@ class InstanceManager:
         used_ports = []
         for instance in self.available_instances():
             used_ports += self.get_instance_ports(instance)	
-        avail_ports = [p for p in all_ports if p not in used_ports] 
+        avail_ports = [p for p in all_ports if str(p) not in used_ports]
+        print avail_ports
         if len(avail_ports) < num:
             raise Exception("Not enough free ports available")
-        assigned_ports = []
-        for port in avail_ports:
-            assigned_ports.append(port)
-        return assigned_ports
+        return avail_ports
 
 
     def instance_environment(self,instance):
          properties = self.read_instance_properties(instance)
          return {
            "CATALINA_BASE": os.path.join(self.var_root,instance),
-           "CATALINA_HOME": os.path.join(self.config_path,"tomcat-versions",properties["tomcat.version"],"catalina-home"),
+           "CATALINA_HOME": os.path.join(self.config_path,"tomcat-versions",properties["tsm.tomcat.version"],"catalina-home"),
            "APP_NAME": "tomcat-"+instance,
            "APP_LONG_NAME": "Tomcat instance " + instance,
            "WRAPPER_CONF": os.path.join(self.instances_path,instance,"conf","wrapper.conf"),
            "PIDDIR": os.path.join(self.var_root,instance,"run"),
-           "RUN_AS_USER": properties["instance.user"],
-           "CATALINA_DEBUG": properties["tomcat.debug"],
+           "RUN_AS_USER": properties["tsm.instance.user"],
+           "CATALINA_DEBUG": properties["tsm.tomcat.debug"],
            "PRIORITY": "",
-           "JAVA_HOME": properties["java.home"],
-           "JAVA_JMXPORT": properties["port.jmx"],
-           "JAVA_MAXMEMORY": properties["java.memory.max"],
-           "JAVA_INITMEMORY": properties["java.memory.init"],
-           "JAVA_MAXPERMSIZE": properties["java.memory.maxPermSize"],
+           "JAVA_HOME": properties["tsm.java.home"],
+           "JAVA_JMXPORT": properties["tsm.port.jmx"],
+           "JAVA_MAXMEMORY": properties["tsm.java.memory.max"],
+           "JAVA_INITMEMORY": properties["tsm.java.memory.init"],
+           "JAVA_MAXPERMSIZE": properties["tsm.java.memory.maxPermSize"],
            "WAIT_AFTER_STARTUP": '0',
            "SHELL": '/bin/dash',
          }
@@ -232,6 +230,14 @@ class Command:
     def ensure_lock(self):
         pass
 
+
+class InstanceCommand(Command):
+
+    def ensure_instance_does_exist(self,instance_name):
+        if not instance_name in self.instance_manager.available_instances():
+            self.fail("An instance with the name " + instance_name + " does not exist")
+
+
 class ListCommand(Command):
 
     _name = "list-instances"
@@ -276,23 +282,23 @@ class CreateInstanceCommand(Command):
 
     def generate_config(self,args):
         config =  "# Network configuration:" + "\n" 
-        config += "port.jmx=" + args["jmx-port"] + "\n"
-        config += "port.ajp=" + args["ajp-port"] + "\n"
-        config += "port.http=" + args["http-port"] +  "\n"
-        config += "port.https=" + args["https-port"] + "\n"
-        config += "port.shutdown=" + args["shutdown-port"] + "\n"
+        config += "tsm.port.jmx=" + args["jmx-port"] + "\n"
+        config += "tsm.port.ajp=" + args["ajp-port"] + "\n"
+        config += "tsm.port.http=" + args["http-port"] +  "\n"
+        config += "tsm.port.https=" + args["https-port"] + "\n"
+        config += "tsm.port.shutdown=" + args["shutdown-port"] + "\n"
         config += "# Tomcat configuration: \n" 
-        config += "tomcat.version=" + args["tomcat-version"] + "\n"
-        config += "tomcat.debug=" + args["tomcat-debug"] + "\n" + "\n" 
-        config += "tomcat.password=" + args["shutdown-password"] + "\n" + "\n"
+        config += "tsm.tomcat.version=" + args["tomcat-version"] + "\n"
+        config += "tsm.tomcat.debug=" + args["tomcat-debug"] + "\n" + "\n" 
+        config += "tsm.tomcat.password=" + args["shutdown-password"] + "\n" + "\n"
         config += "# Java configuration: \n"
-        config += "java.home=" + args["java-home"] +  "\n"
-        config += "java.memory.maxPermSize=" + args["java-memory-max-perm-size"] + "\n"
-        config += "java.memory.max=" + args["java-memory-max-size"] + "\n"
-        config += "java.memory.init=" + args["java-memory-init-size"] + "\n"
+        config += "tsm.java.home=" + args["java-home"] +  "\n"
+        config += "tsm.java.memory.maxPermSize=" + args["java-memory-max-perm-size"] + "\n"
+        config += "tsm.java.memory.max=" + args["java-memory-max-size"] + "\n"
+        config += "tsm.java.memory.init=" + args["java-memory-init-size"] + "\n"
         config += "# Instance configuration: " + "\n" 
-        config += "instance.user=" + args["instance-user"] + "\n"
-        config += "instance.enabled=true" + "\n" + "\n"
+        config += "tsm.instance.user=" + args["instance-user"] + "\n"
+        config += "tsm.instance.enabled=true" + "\n" + "\n"
         config += "# Internal (do not remove) :\n"
         config += "package.access=sun.,org.apache.catalina.,org.apache.coyote.,org.apache.tomcat.,org.apache.jasper.,sun.beans.package.definition=sun.,java.,org.apache.catalina.,org.apache.coyote.,org.apache.tomcat.,org.apache.jasper." + "\n"
         config += "common.loader=${catalina.home}/lib,${catalina.home}/lib/*.jar" + "\n"
@@ -372,73 +378,80 @@ class ListVersionConfigsCommand(Command):
         for v in self.instance_manager.available_version_configs(args["version"],args["config"]):
             print v
 
-class StartConsoleCommand(Command):
+class StartConsoleCommand(InstanceCommand):
 
     _name = "start-console"
     _help = "Starts the instance in console mode"
     _required_args = ["instance-name"]
 
     def execute(self,args):
+        self.ensure_instance_does_exists(args["instance-name"])
         os.environ.update(self.instance_manager.instance_environment(args["instance-name"]))
         os.system("/usr/bin/java-service-wrapper-init-script console")
 
-class StartInstanceCommand(Command):
+class StartInstanceCommand(InstanceCommand):
 
     _name = "start-instance"
     _help = "Starts the instance"
     _required_args = ["instance-name"]
 
     def execute(self,args):
+        self.ensure_instance_does_exist(args["instance-name"])
         os.environ.update(self.instance_manager.instance_environment(args["instance-name"]))
         os.system("/usr/bin/java-service-wrapper-init-script start")
 
-class StopInstanceCommand(Command):
+class StopInstanceCommand(InstanceCommand):
 
     _name = "stop-instance"
     _help = "Stops the instance"
     _required_args = ["instance-name"]
 
     def execute(self,args):
+        self.ensure_instance_does_exist(args["instance-name"])
         os.environ.update(self.instance_manager.instance_environment(args["instance-name"]))
         os.system("/usr/bin/java-service-wrapper-init-script stop")
 
-class RestartInstanceCommand(Command):
+class RestartInstanceCommand(InstanceCommand):
 
     _name = "restart-instance"
     _help = "Restarts the instance"
     _required_args = ["instance-name"]
 
     def execute(self,args):
+        self.ensure_instance_does_exist(args["instance-name"])
         os.environ.update(self.instance_manager.instance_environment(args["instance-name"]))
         os.system("/usr/bin/java-service-wrapper-init-script restart")
 
-class CondrestartInstanceCommand(Command):
+class CondrestartInstanceCommand(InstanceCommand):
 
     _name = "condrestart-instance"
     _help = "Condretarts the instance"
     _required_args = ["instance-name"]
 
     def execute(self,args):
+        self.ensure_instance_does_exist(args["instance-name"])
         os.environ.update(self.instance_manager.instance_environment(args["instance-name"]))
         os.system("/usr/bin/java-service-wrapper-init-script condrestart")
 
-class StatusInstanceCommand(Command):
+class StatusInstanceCommand(InstanceCommand):
 
     _name = "status-instance"
     _help = "Retrieves the status of the instance"
     _required_args = ["instance-name"]
 
     def execute(self,args):
+        self.ensure_instance_does_exist(args["instance-name"])
         os.environ.update(self.instance_manager.instance_environment(args["instance-name"]))
         os.system("/usr/bin/java-service-wrapper-init-script status")
 
-class DumpInstanceCommand(Command):
+class DumpInstanceCommand(InstanceCommand):
 
     _name = "dump-instance"
     _help = "Dumps the status of the instance"
     _required_args = ["instance-name"]
 
     def execute(self,args):
+        self.ensure_instance_does_exist(args["instance-name"])
         os.environ.update(self.instance_manager.instance_environment(args["instance-name"]))
         os.system("/usr/bin/java-service-wrapper-init-script dump")
 
