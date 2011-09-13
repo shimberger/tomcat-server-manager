@@ -84,7 +84,6 @@ class InstanceManager:
         for instance in self.available_instances():
             used_ports += self.get_instance_ports(instance)	
         avail_ports = [p for p in all_ports if str(p) not in used_ports]
-        print avail_ports
         if len(avail_ports) < num:
             raise Exception("Not enough free ports available")
         return avail_ports
