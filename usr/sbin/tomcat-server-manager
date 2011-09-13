@@ -91,7 +91,7 @@ class InstanceManager:
 
     def instance_environment(self,instance):
          properties = self.read_instance_properties(instance)
-         return {
+         environment = {
            "CATALINA_BASE": os.path.join(self.var_root,instance),
            "CATALINA_HOME": os.path.join(self.config_path,"tomcat-versions",properties["tsm.tomcat.version"],"catalina-home"),
            "APP_NAME": "tomcat-"+instance,
@@ -109,6 +109,7 @@ class InstanceManager:
            "WAIT_AFTER_STARTUP": '0',
            "SHELL": '/bin/dash',
          }
+         return environment
 
     def available_version_configs(self,version,config = None):
         configs = []
@@ -332,8 +333,9 @@ class CreateInstanceCommand(Command):
         os.mkdir(os.path.join(var_root,"temp"))
         os.mkdir(os.path.join(var_root,"run"))
         os.mkdir(os.path.join(var_root,"logs"))
-	os.system("chown "+args["instance-user"]+":root "+var_root+"/*")
+        os.system("chown "+args["instance-user"]+":root "+var_root+"/*")
         os.symlink(os.path.join(config_root,"conf"),os.path.join(var_root,"conf"))
+        self.command_manager.execute("correct-permissions",{})
         print "Instance created"
 
 class DeleteInstanceCommand(Command):
@@ -354,6 +356,37 @@ class DeleteInstanceCommand(Command):
             distutils.dir_util.remove_tree(var_root)
         distutils.dir_util.remove_tree(instance_path)
         print "Instance deleted"
+
+class CorrectPermissionsCommand(Command):
+    
+    _name = "correct-permissions"
+    _help = "Sets the correct permissions for instance and config files"
+    
+    def execute(self,args):
+        path = "/etc/tomcat-servers/tomcat-versions"
+        os.system("chown -R -P root:root " + path)
+        os.system("find " + path + " -type f ! -type l | xargs -r chmod 0664")
+        os.system("find " + path + " -type d ! -type l | xargs -r chmod 0775")  
+        os.system("chown root:root /etc/tomcat-servers/manager.properties")
+        os.system("chmod 0660 /etc/tomcat-servers/manager.properties")
+        os.system("chown root:root /etc/tomcat-servers")
+        os.system("chmod 0775 /etc/tomcat-servers")
+        for instance_name in self.instance_manager.available_instances():
+            self.set_instance_perms(instance_name)        
+
+    def set_instance_perms(self,instance_name):
+        etc_path = self.instance_manager.instances_path + "/" + instance_name
+        var_path = os.path.join(self.instance_manager.var_root,instance_name)
+        envrionment = self.instance_manager.instance_environment(instance_name)
+        # Correct /etc/ files
+        os.system("chown -R -P " + envrionment["RUN_AS_USER"] + ":root " + etc_path)
+        os.system("find " + etc_path + " -type f ! -type l | xargs -r chmod 0460")
+        os.system("find " + etc_path + " -type d ! -type l | xargs -r chmod 0570")
+        # Correct /var/ files
+        os.system("chown -R " + envrionment["RUN_AS_USER"] + ":root " + var_path)
+        os.system("find " + var_path + " -type f ! -type l | xargs -r chmod 0660")
+        os.system("find " + var_path + " -type d ! -type l | xargs -r chmod 0770")       
+
 
 class ListVersionsCommand(Command):
 
@@ -483,7 +516,7 @@ command_manager  = CommandManager([
     CommandGroup("Instance control","",[StartConsoleCommand(),StartInstanceCommand(),StopInstanceCommand(),RestartInstanceCommand(),CondrestartInstanceCommand(),StatusInstanceCommand(),DumpInstanceCommand()]),
     CommandGroup("Instance management","",[ListCommand(),CreateInstanceCommand(),DeleteInstanceCommand()]),
     CommandGroup("Tomcat information","",[ListVersionsCommand()]),
-    CommandGroup("General commands","",[DisplayHelpCommand()]),
+    CommandGroup("General commands","",[DisplayHelpCommand(),CorrectPermissionsCommand()]),
 ])
 
 command_manager.instance_manager = instance_manager
