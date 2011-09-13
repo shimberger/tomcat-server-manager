@@ -101,6 +101,16 @@ The relevant directories for this application are:
 * /var/lib/tomcat-servers: This is where the runtime instance information (temp files, logs, ...) is stored
 * /etc/tomcat-servers/: This is where the application and instance configuration is stored
 
+Environment Variables
+=====================
+
+You can add custom environment variables to an instance by editing it's conf/catalina.properties file
+with an entry in the following form.
+
+	env.MY_EVIRONMENT_VAR=my_value
+
+The variable will be made available to the instance.
+
 Options
 =======
 

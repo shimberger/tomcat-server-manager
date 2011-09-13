@@ -90,26 +90,30 @@ class InstanceManager:
 
 
     def instance_environment(self,instance):
-         properties = self.read_instance_properties(instance)
-         environment = {
-           "CATALINA_BASE": os.path.join(self.var_root,instance),
-           "CATALINA_HOME": os.path.join(self.config_path,"tomcat-versions",properties["tsm.tomcat.version"],"catalina-home"),
-           "APP_NAME": "tomcat-"+instance,
-           "APP_LONG_NAME": "Tomcat instance " + instance,
-           "WRAPPER_CONF": os.path.join(self.instances_path,instance,"conf","wrapper.conf"),
-           "PIDDIR": os.path.join(self.var_root,instance,"run"),
-           "RUN_AS_USER": properties["tsm.instance.user"],
-           "CATALINA_DEBUG": properties["tsm.tomcat.debug"],
-           "PRIORITY": "",
-           "JAVA_HOME": properties["tsm.java.home"],
-           "JAVA_JMXPORT": properties["tsm.port.jmx"],
-           "JAVA_MAXMEMORY": properties["tsm.java.memory.max"],
-           "JAVA_INITMEMORY": properties["tsm.java.memory.init"],
-           "JAVA_MAXPERMSIZE": properties["tsm.java.memory.maxPermSize"],
-           "WAIT_AFTER_STARTUP": '0',
-           "SHELL": '/bin/dash',
-         }
-         return environment
+        properties = self.read_instance_properties(instance)
+        environment = {
+          "CATALINA_BASE": os.path.join(self.var_root,instance),
+          "CATALINA_HOME": os.path.join(self.config_path,"tomcat-versions",properties["tsm.tomcat.version"],"catalina-home"),
+          "APP_NAME": "tomcat-"+instance,
+          "APP_LONG_NAME": "Tomcat instance " + instance,
+          "WRAPPER_CONF": os.path.join(self.instances_path,instance,"conf","wrapper.conf"),
+          "PIDDIR": os.path.join(self.var_root,instance,"run"),
+          "RUN_AS_USER": properties["tsm.instance.user"],
+          "CATALINA_DEBUG": properties["tsm.tomcat.debug"],
+          "PRIORITY": "",
+          "JAVA_HOME": properties["tsm.java.home"],
+          "JAVA_JMXPORT": properties["tsm.port.jmx"],
+          "JAVA_MAXMEMORY": properties["tsm.java.memory.max"],
+          "JAVA_INITMEMORY": properties["tsm.java.memory.init"],
+          "JAVA_MAXPERMSIZE": properties["tsm.java.memory.maxPermSize"],
+          "WAIT_AFTER_STARTUP": '0',
+          "SHELL": '/bin/dash',
+        }
+        for key in properties:
+            if key.find("env.") == 0:
+                var_name = key[4:]
+                environment[var_name] = properties[key]
+        return environment
 
     def available_version_configs(self,version,config = None):
         configs = []
