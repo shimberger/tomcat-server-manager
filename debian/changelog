@@ -1,7 +1,7 @@
-tomcat-server-manager (0.1.9~squeeze) squeeze urgency=low
+tomcat-server-manager (0.1.9~squeeze) squeeze; urgency=low
 
   * Fixed bug #20: Output from automatic port management
   * Fixed bug #1: Permissions of instances will now be set to sensible defaults
   * Fixed bug #21: Added possibility to add environment variables per instance
 
- -- Sebastian Himberger <sebastian@himberger.de>  Wed, 02 Feb 2012 22:21:57 +0200
+ -- Sebastian Himberger <sebastian@himberger.de>  Wed, 2 Feb 2012 22:21:57 +0200
