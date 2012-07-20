@@ -1,4 +1,4 @@
-tomcat-server-manager (0.1.9~precise) lucid; urgency=low
+tomcat-server-manager (0.1.9~precise1) precise; urgency=low
 
   * Ported package over to precise
 
