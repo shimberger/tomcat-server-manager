@@ -1,3 +1,9 @@
+tomcat-server-manager (0.1.9-1~lucid) lucid; urgency=low
+
+  * Just a release to fix the version string to include lucid again, sorry
+
+ -- Sebastian Himberger <sebastian@himberger.de>  Fri, 20 Jul 2012 23:41:57 +0200
+
 tomcat-server-manager (0.1.9~lucid) lucid; urgency=low
 
   * Fixed bug #20: Output from automatic port management
