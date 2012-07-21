@@ -1,3 +1,15 @@
+tomcat-server-manager (0.1.9-3~precise) precise; urgency=low
+
+  * Fixed typo in README file name and warning regarding AJP in logs
+
+ -- Sebastian Himberger <sebastian@himberger.de>  Fri, 21 Jul 2012 00:31:57 +0200
+
+tomcat-server-manager (0.1.9-2~precise) precise; urgency=low
+
+  * Fix: Instances directory is now created during install
+
+ -- Sebastian Himberger <sebastian@himberger.de>  Fri, 21 Jul 2012 00:31:57 +0200
+
 tomcat-server-manager (0.1.9-1~precise) precise; urgency=low
 
   * Better version number
