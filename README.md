@@ -24,6 +24,19 @@ instances on a single Debian/Ubuntu host. It provides the following features:
  * A command line interface to manage instances (creation, deletion)
  * A convention on how to structure the configuration files
 
+Quick start
+------------------------------
+
+To create a new instance perform the following steps:
+
+ * adduser --disabled-password tomcat
+ * tomcat-server-manager create-instance --instance-name=tomcat1 --instance-user=tomcat
+ * /etc/init.d/tomcat-servers start
+ * tomcat-server-manager list-instances --details --only-running
+
+You can now start the instance. Please see "Adding a web app to an instance" to find
+out how to deploy a web app to this new instance.
+
 Usage of the management script
 ------------------------------
 
