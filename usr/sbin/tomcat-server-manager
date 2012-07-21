@@ -10,6 +10,7 @@ import fileinput
 import random
 import string
 import subprocess
+import socket
 
 # Functions & Classes
 
@@ -24,6 +25,14 @@ def args_as_dict(args):
         if m != None:
             args_dict[m.group(1)] = m.group(2)
     return args_dict
+
+def flags_as_dict(flags):
+    flags_dict = {}
+    for flag in flags:
+        m = re.search("^--(.*)$",flag)
+        if m != None:
+            flags_dict[m.group(1)] = True
+    return flags_dict    
 
 def banner():        
     print "For details regarding a specific command use \"tomcat-server-manager help --command=<<command-name>>\""
@@ -50,6 +59,18 @@ class InstanceManager:
          return [name for name in os.listdir(self.instances_path)
             if os.path.isdir(os.path.join(self.instances_path, name))]  
 
+    def is_instance_running(self,instance):
+        # We will check if shutdown port is open
+        properties = self.read_instance_properties(instance)
+        port = properties["tsm.port.shutdown"] 
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            s.connect(("127.0.0.1", int(port)))
+            s.shutdown(2)
+            return True
+        except:
+            return False
+
     def read_instance_properties(self,instance):
 	    return self.read_properties(os.path.join(self.instances_path,instance,"conf/catalina.properties"))
 
@@ -67,7 +88,7 @@ class InstanceManager:
 
     def get_instance_ports(self,instance):
         ports = []
-	properties = self.read_instance_properties(instance)
+        properties = self.read_instance_properties(instance)
         add_key_to_list("tsm.port.jmx",properties,ports)
         add_key_to_list("tsm.port.ajp",properties,ports)	     
         add_key_to_list("tsm.port.http",properties,ports)
@@ -154,7 +175,7 @@ class CommandManager:
     def command_groups(self):
         return self._command_groups
 
-    def execute(self,command,args):
+    def execute(self,command,args,flags = {}):
         if self.is_available_command(command):
             cmd = self.known_commands_by_name[command]
             cmd.instance_manager = self.instance_manager
@@ -163,6 +184,9 @@ class CommandManager:
             for required_arg in cmd.required_args():
                 if required_arg not in args or args[required_arg] == None or args[required_arg].strip() == "":
                     self.fail("Required parameter --" + required_arg + "=<<value>> not set")
+            for flag in flags:
+                if flag in cmd.optional_flags():
+                    args[flag] = True
             cmd.execute(args)
 
     def fail(self,reason):
@@ -200,6 +224,9 @@ class Command:
     _optional_args = []
     _optional_args_help = []
 
+    _optional_flags = []
+    _optional_flags_help = []
+
     instance_manager = None
     command_manager = None
 
@@ -217,6 +244,12 @@ class Command:
 
     def optional_args_help(self):
         return self._optional_args_help
+
+    def optional_flags(self):
+        return self._optional_flags
+
+    def optional_flags_help(self):
+        return self._optional_flags_help
 
     def help(self):
         return self._help
@@ -246,10 +279,29 @@ class ListCommand(Command):
 
     _name = "list-instances"
     _help = "Lists all Tomcat instances"
+    _optional_flags = ["only-running","details"]   
 
     def execute(self,args):
+        only_running = False
+        if "only-running" in args:
+                only_running = True
         for i in self.instance_manager.available_instances():
-            print i
+            if (only_running and self.instance_manager.is_instance_running(i)) or (not only_running):
+                self.output_instance(i,args)
+
+    def output_instance(self,instance,args):
+        show_details = False
+        properties = self.instance_manager.read_instance_properties(instance) 
+        if "details" in args:
+                show_details = True
+        print instance
+        if show_details:
+            print "  Running:    " + str(self.instance_manager.is_instance_running(instance))
+            print "  HTTP Port:  " + properties["tsm.port.http"]
+            print "  HTTPS Port: " + properties["tsm.port.https"]
+            print "  AJP Port:   " + properties["tsm.port.ajp"]
+            print "  JMX Port:   " + properties["tsm.port.jmx"]
+            print "  (Please note that these are just the assigned ports. Usage depends on the configuration)\n"
 
 class CreateInstanceCommand(Command):
 
@@ -340,7 +392,13 @@ class CreateInstanceCommand(Command):
         os.system("chown "+args["instance-user"]+":root "+var_root+"/*")
         os.symlink(os.path.join(config_root,"conf"),os.path.join(var_root,"conf"))
         self.command_manager.execute("correct-permissions",{})
-        print "Instance created"
+        print "Instance '" + args["instance-name"] + "' created"
+        print "  HTTP Port:  " + args["http-port"]
+        print "  HTTPS Port: " + args["https-port"]
+        print "  AJP Port:   " + args["ajp-port"]
+        print "  JMX Port:   " + args["jmx-port"]
+        print "  (Please note that these are just the assigned ports. Usage depends on the configuration)\n"
+        print "Star the instance via /etc/init.d/tomcat-servers start " + args["instance-name"]                        
 
 class DeleteInstanceCommand(Command):
 
@@ -512,6 +570,10 @@ class DisplayHelpCommand(Command):
         for arg in cmd.optional_args():
             print "    --" + arg + "=<<value>>\t\t\t"
         print "\n"
+        print "\n  Optional Flags:"
+        for flag in cmd.optional_flags():
+            print "    --" + flag + "\t\t\t"
+        print "\n"        
 
         
 
@@ -542,10 +604,11 @@ if not command_manager.is_available_command(user_command):
     exit(1)
 
 args = args_as_dict(sys.argv[2:])
+flags = flags_as_dict(sys.argv[2:])
 
 if not os.geteuid()==0:
     sys.exit("You have to be root to run this script. Try using sudo.")
 
-command_manager.execute(user_command,args)
+command_manager.execute(user_command,args,flags)
 
 
